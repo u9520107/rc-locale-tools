@@ -4,6 +4,7 @@ Setup
 ---
 
 1. npm install:
+
     ```shell
     npm install
     ```
