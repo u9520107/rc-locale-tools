@@ -54,7 +54,7 @@ function processLocale(locale, db, obj = {}) {
     return obj;
 }
 
-function summarize(result, keyPath=[], summary = {
+function summarize(result, exclusions = {}, keyPath=[], summary = {
     missingEnUs: [],
     missingTranslations: {}
 }) {
@@ -72,7 +72,7 @@ function summarize(result, keyPath=[], summary = {
                     }
                     summary.missingTranslations[thisPath][locale] = '';
                 } else if(!/^en/.test(locale)){
-                    if(result[key].hasOwnProperty('en-us') && result[key]['en-us'] === result[key][locale]) {
+                    if(!exclusions[thisPath] && result[key].hasOwnProperty('en-us') && result[key]['en-us'] === result[key][locale]) {
                         if(!summary.missingTranslations[thisPath]) summary.missingTranslations[thisPath] = {};
 
                         summary.missingTranslations[thisPath]['en-us'] = result[key]['en-us'];
@@ -82,21 +82,34 @@ function summarize(result, keyPath=[], summary = {
             });
 
         } else {
-            summarize(result[key], keyPath.concat(key), summary);
+            summarize(result[key], exclusions, keyPath.concat(key), summary);
         }
 
     }
     return summary;
 }
 
-
+async function parseExclusions() {
+    let file = path.resolve(i18nPath, 'exclude-resources');
+    let raw = await fs.readFile(file, 'utf8');
+    let comment = /^\/\//;
+    let exclusions = {};
+    raw.split('\n').forEach(line => {
+        line = line.trim();
+        if(!comment.test(line) && line !== '') {
+            exclusions[line] = true;
+        }
+    });
+    return exclusions;
+}
 
 
 (async _ => {
     console.time('scan');
     let files = await readFiles();
+    let exclusions = await parseExclusions();
     let result = processFiles(files);
-    let summary = summarize(result);
+    let summary = summarize(result, exclusions);
 
     let resultName = 'result-googlechrome.json';
     let summaryName = 'summary-googlechrome.json';
